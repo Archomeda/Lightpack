@@ -25,6 +25,7 @@
  */
 
 #include <QtAlgorithms>
+#include <QtGlobal>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QDesktopWidget>
@@ -106,18 +107,18 @@ SettingsWindow::SettingsWindow(QWidget *parent) :
     labelProfile = new QLabel(statusBar());
     labelProfile->setStyleSheet("margin-left:1em");
     labelDevice = new QLabel(statusBar());
-    labelFPS  = new QLabel(statusBar());
+    labelStatus = new QLabel(statusBar());
 
     statusBar()->setStyleSheet("QStatusBar{border-top: 1px solid; border-color: palette(midlight);} QLabel{margin:0.2em}");
     statusBar()->setSizeGripEnabled(false);
     statusBar()->addWidget(labelProfile, 4);
     statusBar()->addWidget(labelDevice, 4);
-    statusBar()->addWidget(labelFPS, 4);
+    statusBar()->addWidget(labelStatus, 4);
     statusBar()->addWidget(m_labelStatusIcon, 0);
 
     updateStatusBar();
 
-    initGrabbersRadioButtonsVisibility();
+    initAvailableGrabbers();
     initLanguages();
     initVirtualLeds(Settings::getNumberOfLeds(SupportedDevices::DeviceTypeVirtual));
 
@@ -174,34 +175,41 @@ void SettingsWindow::connectSignalsSlots()
 //    }
     DEBUG_MID_LEVEL << Q_FUNC_INFO << "tr";
 
+    connect(ui->comboBox_Language, SIGNAL(activated(QString)), this, SLOT(loadTranslation(QString)));
+
+    // Light options
+    connect(ui->comboBox_LightpackModes, SIGNAL(currentIndexChanged(int)), this, SLOT(onLightpackModes_currentIndexChanged(int)));
+
     connect(ui->listWidget, SIGNAL(currentRowChanged(int)), this, SLOT(changePage(int)));
     connect(ui->spinBox_GrabSlowdown, SIGNAL(valueChanged(int)), this, SLOT(onGrabSlowdown_valueChanged(int)));
-    connect(ui->spinBox_LuminosityThreshold, SIGNAL(valueChanged(int)), this, SLOT(onLuminosityThreshold_valueChanged(int)));
-    connect(ui->radioButton_MinimumLuminosity, SIGNAL(toggled(bool)), this, SLOT(onMinimumLumosity_toggled(bool)));
-    connect(ui->radioButton_LuminosityDeadZone, SIGNAL(toggled(bool)), this, SLOT(onMinimumLumosity_toggled(bool)));
     connect(ui->checkBox_GrabIsAvgColors, SIGNAL(toggled(bool)), this, SLOT(onGrabIsAvgColors_toggled(bool)));
+    connect(ui->checkBox_GrabWidgets, SIGNAL(toggled(bool)), this, SLOT(onGrabWidgets_toggled(bool)));
+    connect(ui->comboBox_GrabWidgetsSelection, SIGNAL(currentIndexChanged(int)), this, SLOT(onGrabWidgetsSelection_currentIndexChanged(int)));
 
-    connect(ui->radioButton_GrabWidgetsDontShow, SIGNAL(toggled(bool)), this, SLOT( onDontShowLedWidgets_Toggled(bool)));
-    connect(ui->radioButton_Colored, SIGNAL(toggled(bool)), this, SLOT(onSetColoredLedWidgets(bool)));
-    connect(ui->radioButton_White, SIGNAL(toggled(bool)), this, SLOT(onSetWhiteLedWidgets(bool)));
+    connect(ui->spinBox_LuminosityThreshold, SIGNAL(valueChanged(int)), this, SLOT(onLuminosityThreshold_valueChanged(int)));
 
+    connect(ui->comboBox_CaptureSource, SIGNAL(currentIndexChanged(int)), this, SLOT(onCaptureSource_currentIndexChanged()));
+
+    connect(ui->pushButton_SelectColor, SIGNAL(colorChanged(QColor)), this, SLOT(onMoodLampColor_changed(QColor)));
     connect(ui->radioButton_LiquidColorMoodLampMode, SIGNAL(toggled(bool)), this, SLOT(onMoodLampLiquidMode_Toggled(bool)));
     connect(ui->horizontalSlider_MoodLampSpeed, SIGNAL(valueChanged(int)), this, SLOT(onMoodLampSpeed_valueChanged(int)));
 
-    // Main options
-    connect(ui->comboBox_LightpackModes, SIGNAL(currentIndexChanged(int)), this, SLOT(onLightpackModes_currentIndexChanged(int)));
-    connect(ui->comboBox_Language, SIGNAL(activated(QString)), this, SLOT(loadTranslation(QString)));
+    connect(ui->spinBox_DeviceBrightness, SIGNAL(valueChanged(int)), this, SLOT(onDeviceBrightness_valueChanged(int)));
+    connect(ui->doubleSpinBox_DeviceGamma, SIGNAL(valueChanged(double)), this, SLOT(onDeviceGammaCorrection_valueChanged(double)));
+    connect(ui->horizontalSlider_GammaCorrection, SIGNAL(valueChanged(int)), this, SLOT(onSliderDeviceGammaCorrection_valueChanged(int)));
+
     connect(ui->pushButton_EnableDisableDevice, SIGNAL(clicked()), this, SLOT(toggleBacklight()));
 
     // Device options
-    connect(ui->spinBox_DeviceRefreshDelay, SIGNAL(valueChanged(int)), this, SLOT(onDeviceRefreshDelay_valueChanged(int)));
-    connect(ui->spinBox_DeviceSmooth, SIGNAL(valueChanged(int)), this, SLOT(onDeviceSmooth_valueChanged(int)));
-    connect(ui->spinBox_DeviceBrightness, SIGNAL(valueChanged(int)), this, SLOT(onDeviceBrightness_valueChanged(int)));
-    connect(ui->spinBox_DeviceColorDepth, SIGNAL(valueChanged(int)), this, SLOT(onDeviceColorDepth_valueChanged(int)));
-    connect(ui->doubleSpinBox_DeviceGamma, SIGNAL(valueChanged(double)), this, SLOT(onDeviceGammaCorrection_valueChanged(double)));
-    connect(ui->horizontalSlider_GammaCorrection, SIGNAL(valueChanged(int)), this, SLOT(onSliderDeviceGammaCorrection_valueChanged(int)));
+    connect(ui->checkBox_KeepLightsOnAfterLockComputer, SIGNAL(toggled(bool)), this, SLOT(onKeepLightsAfterLock_Toggled(bool)));
+    connect(ui->checkBox_KeepLightsOnAfterExit, SIGNAL(toggled(bool)), this, SLOT(onKeepLightsAfterExit_Toggled(bool)));
     connect(ui->checkBox_SendDataOnlyIfColorsChanges, SIGNAL(toggled(bool)), this, SLOT(onDeviceSendDataOnlyIfColorsChanged_toggled(bool)));
+    connect(ui->checkBox_PingDeviceEverySecond, SIGNAL(toggled(bool)), this, SLOT(onPingDeviceEverySecond_Toggled(bool)));
 
+    connect(ui->spinBox_DeviceColorDepth, SIGNAL(valueChanged(int)), this, SLOT(onDeviceColorDepth_valueChanged(int)));
+    connect(ui->spinBox_DeviceSmooth, SIGNAL(valueChanged(int)), this, SLOT(onDeviceSmooth_valueChanged(int)));
+    connect(ui->spinBox_DeviceRefreshDelay, SIGNAL(valueChanged(int)), this, SLOT(onDeviceRefreshDelay_valueChanged(int)));
+    
     // Open Settings file
     connect(ui->commandLinkButton_OpenSettings, SIGNAL(clicked()), this, SLOT(openCurrentProfile()));
 
@@ -219,40 +227,9 @@ void SettingsWindow::connectSignalsSlots()
     connect(ui->pushButton_ProfileResetToDefault, SIGNAL(clicked()), this, SLOT(profileResetToDefaultCurrent()));
     connect(ui->pushButton_DeleteProfile, SIGNAL(clicked()), this, SLOT(profileDeleteCurrent()));
 
-    connect(ui->pushButton_SelectColor, SIGNAL(colorChanged(QColor)), this, SLOT(onMoodLampColor_changed(QColor)));
     connect(ui->checkBox_ExpertModeEnabled, SIGNAL(toggled(bool)), this, SLOT(onExpertModeEnabled_Toggled(bool)));
-    connect(ui->checkBox_KeepLightsOnAfterExit, SIGNAL(toggled(bool)), this, SLOT(onKeepLightsAfterExit_Toggled(bool)));
-    connect(ui->checkBox_KeepLightsOnAfterLockComputer, SIGNAL(toggled(bool)), this, SLOT(onKeepLightsAfterLock_Toggled(bool)));
-
-    // Dev tab
-#ifdef QT_GRAB_SUPPORT
-    connect(ui->radioButton_GrabQt, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-    connect(ui->radioButton_GrabQt_EachWidget, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef WINAPI_GRAB_SUPPORT
-    connect(ui->radioButton_GrabWinAPI, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef DDUPL_GRAB_SUPPORT
-    connect(ui->radioButton_GrabDDupl, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef WINAPI_EACH_GRAB_SUPPORT
-    connect(ui->radioButton_GrabWinAPI_EachWidget, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef D3D9_GRAB_SUPPORT
-    connect(ui->radioButton_GrabD3D9, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef X11_GRAB_SUPPORT
-    connect(ui->radioButton_GrabX11, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef MAC_OS_CG_GRAB_SUPPORT
-    connect(ui->radioButton_GrabMacCoreGraphics, SIGNAL(toggled(bool)), this, SLOT(onGrabberChanged()));
-#endif
-#ifdef D3D10_GRAB_SUPPORT
-    connect(ui->checkBox_EnableDx1011Capture, SIGNAL(toggled(bool)), this, SLOT(onDx1011CaptureEnabledChanged(bool)));
-    connect(ui->checkBox_EnableDx9Capture, SIGNAL(toggled(bool)), this, SLOT(onDx9CaptureEnabledChanged(bool)));
-#endif
-
-
+    
+    // Advanced options
     // Dev tab configure API (port, apikey)
     connect(ui->groupBox_Api, SIGNAL(toggled(bool)), this, SLOT(onEnableApi_Toggled(bool)));
     connect(ui->checkBox_listenOnlyOnLoInterface, SIGNAL(toggled(bool)), this, SLOT(onListenOnlyOnLoInterface_Toggled(bool)));
@@ -262,7 +239,6 @@ void SettingsWindow::connectSignalsSlots()
     connect(ui->lineEdit_ApiKey, SIGNAL(editingFinished()), this, SLOT(onApiKey_EditingFinished()));
 
     connect(ui->spinBox_LoggingLevel, SIGNAL(valueChanged(int)), this, SLOT(onLoggingLevel_valueChanged(int)));
-    connect(ui->checkBox_PingDeviceEverySecond, SIGNAL(toggled(bool)), this, SLOT(onPingDeviceEverySecond_Toggled(bool)));
 
     //Plugins
     //    connected during setupUi by name:
@@ -329,7 +305,7 @@ void SettingsWindow::closeEvent(QCloseEvent *event)
 void SettingsWindow::onFocus()
 {
     DEBUG_LOW_LEVEL << Q_FUNC_INFO;
-    if (!ui->radioButton_GrabWidgetsDontShow->isChecked() && ui->comboBox_LightpackModes->currentIndex() == GrabModeIndex) {
+    if (ui->checkBox_GrabWidgets->isChecked() && ui->comboBox_LightpackModes->currentIndex() == GrabModeIndex) {
         emit showLedWidgets(true);
     }
 }
@@ -369,7 +345,7 @@ void SettingsWindow::updateStatusBar() {
 
     this->labelProfile->setText(tr("Profile: %1").arg(Settings::getCurrentProfileName()));
     this->labelDevice->setText(tr("Device: %1").arg(Settings::getConnectedDeviceName()));
-    this->labelFPS->setText(tr("FPS: %1").arg(""));
+    this->labelStatus->setText("");
 }
 
 void SettingsWindow::updateDeviceTabWidgetsVisibility()
@@ -407,7 +383,7 @@ void SettingsWindow::setDeviceTabWidgetsVisibility(DeviceTab::Options options)
     DEBUG_LOW_LEVEL << Q_FUNC_INFO << options;
 
 #ifdef QT_NO_DEBUG
-    int majorVersion = getLigtpackFirmwareVersionMajor();
+    int majorVersion = getLightpackFirmwareVersionMajor();
     bool isShowOldSettings = (majorVersion == 4 || majorVersion == 5) && Settings::isExpertModeEnabled();
 
     // Show color depth only if lightpack hw4.x or hw5.x
@@ -430,7 +406,7 @@ void SettingsWindow::syncLedDeviceWithSettingsWindow()
     emit updateGamma(Settings::getDeviceGamma());
 }
 
-int SettingsWindow::getLigtpackFirmwareVersionMajor()
+int SettingsWindow::getLightpackFirmwareVersionMajor()
 {
     DEBUG_MID_LEVEL << Q_FUNC_INFO;
 
@@ -743,41 +719,33 @@ void SettingsWindow::updateTrayAndActionStates()
         m_labelStatusIcon->setToolTip(m_trayIcon->toolTip());
 }
 
-void SettingsWindow::initGrabbersRadioButtonsVisibility()
+void SettingsWindow::initAvailableGrabbers()
 {
-#ifndef WINAPI_GRAB_SUPPORT
-    ui->radioButton_GrabWinAPI->setVisible(false);
-#else
-    ui->radioButton_GrabWinAPI->setChecked(true);
+#ifdef WINAPI_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeWinAPI);
 #endif
-#ifndef WINAPI_EACH_SUPPORT
-    ui->radioButton_GrabWinAPI_EachWidget->setVisible(false);
+#ifdef WINAPI_EACH_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeWinAPIEachWidget);
 #endif
-#ifndef DDUPL_GRAB_SUPPORT
-    ui->radioButton_GrabDDupl->setVisible(false);
+#ifdef DDUPL_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeDDupl);
 #endif
-#ifndef D3D9_GRAB_SUPPORT
-    ui->radioButton_GrabD3D9->setVisible(false);
+#ifdef D3D9_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeD3D9);
 #endif
 #ifndef D3D10_GRAB_SUPPORT
     ui->checkBox_EnableDx1011Capture->setVisible(false);
     ui->checkBox_EnableDx9Capture->setVisible(false);
 #endif
-#ifndef X11_GRAB_SUPPORT
-    ui->radioButton_GrabX11->setVisible(false);
-#else
-    ui->radioButton_GrabX11->setChecked(true);
+#ifdef X11_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeX11);
 #endif
-#ifndef MAC_OS_CG_GRAB_SUPPORT
-    ui->radioButton_GrabMacCoreGraphics->setVisible(false);
-#else
-    ui->radioButton_GrabMacCoreGraphics->setChecked(true);
+#ifdef MAC_OS_CG_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeMacCoreGraphics);
 #endif
-#ifndef QT_GRAB_SUPPORT
-    ui->radioButton_GrabQt->setVisible(false);
-    ui->radioButton_GrabQt_EachWidget->setVisible(false);
-#else
-    ui->radioButton_GrabQt->setChecked(true);
+#ifdef QT_GRAB_SUPPORT
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeQt);
+    m_availableGrabbers.append(Grab::GrabberType::GrabberTypeQtEachWidget);
 #endif
 }
 
@@ -1019,23 +987,25 @@ void SettingsWindow::refreshAmbilightEvaluated(double updateResultMs)
 {    
     DEBUG_MID_LEVEL << Q_FUNC_INFO << updateResultMs;
 
-    double secs = updateResultMs / 1000;
-    double hz = 0;
+    if (ui->comboBox_LightpackModes->currentIndex() == 0) {
+        double secs = updateResultMs / 1000;
+        double hz = 0;
+    
+        if(secs != 0){
+            hz = 1 / secs;
+        }
 
-    if(secs != 0){
-        hz = 1 / secs;
+        this->labelStatus->setText(tr("FPS: ")+QString::number(hz,'f', 2) );
+    } else {
+        this->labelStatus->setText(ui->comboBox_LightpackModes->currentText());
     }
-
-    ui->label_GrabFrequency_value->setText(QString::number(hz,'f', 2) /* ms to hz */);
-
-    this->labelFPS->setText(tr("FPS: ")+QString::number(hz,'f', 2) );
 }
 
 // ----------------------------------------------------------------------------
 // UI handlers
 // ----------------------------------------------------------------------------
 
-void SettingsWindow::onGrabberChanged()
+void SettingsWindow::onCaptureSource_currentIndexChanged()
 {
     if (!updatingFromSettings) {
         Grab::GrabberType grabberType = getSelectedGrabberType();
@@ -1077,14 +1047,8 @@ void SettingsWindow::onLuminosityThreshold_valueChanged(int value)
 {
     DEBUG_LOW_LEVEL << Q_FUNC_INFO << value;
 
-    Settings::setLuminosityThreshold(value);
-}
-
-void SettingsWindow::onMinimumLumosity_toggled(bool value)
-{
-    DEBUG_LOW_LEVEL << Q_FUNC_INFO << value;
-
-    Settings::setMinimumLuminosityEnabled(ui->radioButton_MinimumLuminosity->isChecked());
+    Settings::setLuminosityThreshold(qAbs(value));
+    Settings::setMinimumLuminosityEnabled(value >= 0);
 }
 
 void SettingsWindow::onGrabIsAvgColors_toggled(bool state)
@@ -1172,7 +1136,7 @@ void SettingsWindow::onLightpackModeChanged(Lightpack::Mode mode)
     case Lightpack::AmbilightMode:
         ui->comboBox_LightpackModes->setCurrentIndex(GrabModeIndex);
         ui->stackedWidget_LightpackModes->setCurrentIndex(GrabModeIndex);
-        emit showLedWidgets(!ui->radioButton_GrabWidgetsDontShow->isChecked() && this->isVisible());
+        emit showLedWidgets(ui->checkBox_GrabWidgets->isChecked() && this->isVisible());
         if (ui->radioButton_LiquidColorMoodLampMode->isChecked())
         {
 //             Restore smooth slowdown value
@@ -1235,24 +1199,22 @@ void SettingsWindow::onMoodLampLiquidMode_Toggled(bool checked)
     }
 }
 
-void SettingsWindow::onDontShowLedWidgets_Toggled(bool checked)
-{
-    DEBUG_LOW_LEVEL << Q_FUNC_INFO << checked;
-    emit showLedWidgets(!checked);
+void SettingsWindow::onGrabWidgets_toggled(bool state) {
+    DEBUG_LOW_LEVEL << Q_FUNC_INFO << state;
+    ui->comboBox_GrabWidgetsSelection->setEnabled(state);
+    emit showLedWidgets(state);
 }
 
-void SettingsWindow::onSetColoredLedWidgets(bool checked)
-{
-    DEBUG_LOW_LEVEL << Q_FUNC_INFO;
-    if (checked)
+void SettingsWindow::onGrabWidgetsSelection_currentIndexChanged(int index) {
+    DEBUG_LOW_LEVEL << Q_FUNC_INFO << index;
+    switch (index) {
+    case 0:
         emit setColoredLedWidget(true);
-}
-
-void SettingsWindow::onSetWhiteLedWidgets(bool checked)
-{
-    DEBUG_LOW_LEVEL << Q_FUNC_INFO;
-    if (checked)
+        break;
+    case 1:
         emit setColoredLedWidget(false);
+        break;
+    }
 }
 
 void SettingsWindow::onDeviceSendDataOnlyIfColorsChanged_toggled(bool state)
@@ -1534,6 +1496,44 @@ void SettingsWindow::loadTranslation(const QString & language)
     }else{
         qWarning() << "Fail load translation for locale" << locale << "pathToLocale" << pathToLocale;
     }
+
+    updateCaptureSourceTranslation();
+}
+
+void SettingsWindow::updateCaptureSourceTranslation() {
+    for (int i = 0; i < m_availableGrabbers.count(); ++i) {
+        if (ui->comboBox_CaptureSource->count() <= i) {
+            ui->comboBox_CaptureSource->addItem("(...)");
+        }
+
+        switch (m_availableGrabbers[i])
+        {
+        case Grab::GrabberType::GrabberTypeWinAPI:
+            ui->comboBox_CaptureSource->setItemText(i, tr("WinAPI (Full screen)"));
+            break;
+        case Grab::GrabberType::GrabberTypeWinAPIEachWidget:
+            ui->comboBox_CaptureSource->setItemText(i, tr("WinAPI (Each widget)"));
+            break;
+        case Grab::GrabberType::GrabberTypeDDupl:
+            ui->comboBox_CaptureSource->setItemText(i, tr("Win8 Desktop Duplication"));
+            break;
+        case Grab::GrabberType::GrabberTypeD3D9:
+            ui->comboBox_CaptureSource->setItemText(i, tr("D3D9 (Full screen)"));
+            break;
+        case Grab::GrabberType::GrabberTypeX11:
+            ui->comboBox_CaptureSource->setItemText(i, tr("X11 (Full screen)"));
+            break;
+        case Grab::GrabberType::GrabberTypeMacCoreGraphics:
+            ui->comboBox_CaptureSource->setItemText(i, tr("Mac CG (Full screen)"));
+            break;
+        case Grab::GrabberType::GrabberTypeQt:
+            ui->comboBox_CaptureSource->setItemText(i, tr("Qt (Full screen)"));
+            break;
+        case Grab::GrabberType::GrabberTypeQtEachWidget:
+            ui->comboBox_CaptureSource->setItemText(i, tr("Qt (Each widget)"));
+            break;
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1589,10 +1589,6 @@ void SettingsWindow::updateUiFromSettings()
     ui->spinBox_LuminosityThreshold->setValue                        (Settings::getLuminosityThreshold());
 
     // Check the selected moodlamp mode (setChecked(false) not working to select another)
-    ui->radioButton_MinimumLuminosity->setChecked                    (Settings::isMinimumLuminosityEnabled());
-    ui->radioButton_LuminosityDeadZone->setChecked                   (!Settings::isMinimumLuminosityEnabled());
-
-    // Check the selected moodlamp mode (setChecked(false) not working to select another)
     ui->radioButton_ConstantColorMoodLampMode->setChecked            (!Settings::isMoodLampLiquidMode());
     ui->radioButton_LiquidColorMoodLampMode->setChecked              (Settings::isMoodLampLiquidMode());
     ui->pushButton_SelectColor->setColor                             (Settings::getMoodLampColor());
@@ -1612,42 +1608,9 @@ void SettingsWindow::updateUiFromSettings()
     ui->lineEdit_ApiKey->setText                                     (Settings::getApiAuthKey());
     ui->spinBox_LoggingLevel->setValue                               (g_debugLevel);
 
-    switch (Settings::getGrabberType())
-    {
-#ifdef WINAPI_GRAB_SUPPORT
-    case Grab::GrabberTypeWinAPI:
-        ui->radioButton_GrabWinAPI->setChecked(true);
-        break;
-    case Grab::GrabberTypeWinAPIEachWidget:
-        ui->radioButton_GrabWinAPI_EachWidget->setChecked(true);
-        break;
-#endif
-#ifdef DDUPL_GRAB_SUPPORT
-    case Grab::GrabberTypeDDupl:
-        ui->radioButton_GrabDDupl->setChecked(true);
-        break;
-#endif
-#ifdef D3D9_GRAB_SUPPORT
-    case Grab::GrabberTypeD3D9:
-        ui->radioButton_GrabD3D9->setChecked(true);
-        break;
-#endif
-#ifdef X11_GRAB_SUPPORT
-    case Grab::GrabberTypeX11:
-        ui->radioButton_GrabX11->setChecked(true);
-        break;
-#endif
-#ifdef MAC_OS_CG_GRAB_SUPPORT
-    case Grab::GrabberTypeMacCoreGraphics:
-        ui->radioButton_GrabMacCoreGraphics->setChecked(true);
-        break;
-#endif
-    case Grab::GrabberTypeQtEachWidget:
-        ui->radioButton_GrabQt_EachWidget->setChecked(true);
-        break;
-
-    default:
-        ui->radioButton_GrabQt->setChecked(true);
+    int grabberIndex = m_availableGrabbers.indexOf(Settings::getGrabberType());
+    if (grabberIndex >= 0) {
+        ui->comboBox_CaptureSource->setCurrentIndex(grabberIndex);
     }
 
 #ifdef D3D10_GRAB_SUPPORT
@@ -1657,46 +1620,16 @@ void SettingsWindow::updateUiFromSettings()
 
     onMoodLampLiquidMode_Toggled(ui->radioButton_LiquidColorMoodLampMode->isChecked());
     updateExpertModeWidgetsVisibility();
-    onGrabberChanged();
     settingsProfileChanged_UpdateUI(Settings::getCurrentProfileName());
     updatingFromSettings = false;
 }
 
 Grab::GrabberType SettingsWindow::getSelectedGrabberType()
 {
-#ifdef X11_GRAB_SUPPORT
-    if (ui->radioButton_GrabX11->isChecked()) {
-        return Grab::GrabberTypeX11;
+    int index = ui->comboBox_CaptureSource->currentIndex();
+    if (m_availableGrabbers.count() > index) {
+        return m_availableGrabbers[index];
     }
-#endif
-#ifdef WINAPI_GRAB_SUPPORT
-    if (ui->radioButton_GrabWinAPI->isChecked()) {
-        return Grab::GrabberTypeWinAPI;
-    }
-    if (ui->radioButton_GrabWinAPI_EachWidget->isChecked()) {
-        return Grab::GrabberTypeWinAPIEachWidget;
-    }
-#endif
-#ifdef DDUPL_GRAB_SUPPORT
-    if (ui->radioButton_GrabDDupl->isChecked()) {
-        return Grab::GrabberTypeDDupl;
-    }
-#endif
-#ifdef D3D9_GRAB_SUPPORT
-    if (ui->radioButton_GrabD3D9->isChecked()) {
-        return Grab::GrabberTypeD3D9;
-    }
-#endif
-#ifdef MAC_OS_CG_GRAB_SUPPORT
-    if (ui->radioButton_GrabMacCoreGraphics->isChecked()) {
-        return Grab::GrabberTypeMacCoreGraphics;
-    }
-#endif
-
-    if (ui->radioButton_GrabQt_EachWidget->isChecked()) {
-        return Grab::GrabberTypeQtEachWidget;
-    }
-
     return Grab::GrabberTypeQt;
 }
 

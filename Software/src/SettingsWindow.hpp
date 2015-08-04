@@ -27,10 +27,10 @@
 
 #pragma once
 
+#include <QLabel>
 #include <QListWidgetItem>
 #include <QMainWindow>
 #include <QSystemTrayIcon>
-#include <QLabel>
 #include "Settings.hpp"
 #include "GrabManager.hpp"
 #include "MoodLampManager.hpp"
@@ -138,11 +138,12 @@ private slots:
     void nextProfile();
     void prevProfile();
 
-    void onGrabberChanged();
     void onGrabSlowdown_valueChanged(int value);
     void onLuminosityThreshold_valueChanged(int value);
-    void onMinimumLumosity_toggled(bool value);
     void onGrabIsAvgColors_toggled(bool state);
+    void onGrabWidgets_toggled(bool state);
+    void onGrabWidgetsSelection_currentIndexChanged(int index);
+    void onCaptureSource_currentIndexChanged();
 
     void onDeviceRefreshDelay_valueChanged(int value);
     void onDeviceSmooth_valueChanged(int value);
@@ -151,12 +152,8 @@ private slots:
     void onDeviceGammaCorrection_valueChanged(double value);
     void onSliderDeviceGammaCorrection_valueChanged(int value);
     void onDeviceSendDataOnlyIfColorsChanged_toggled(bool state);
-	void onDx1011CaptureEnabledChanged(bool isEnabled);
-	void onDx9CaptureEnabledChanged(bool isEnabled);
-
-    void onDontShowLedWidgets_Toggled(bool checked);
-    void onSetColoredLedWidgets(bool checked);
-    void onSetWhiteLedWidgets(bool checked);
+    void onDx1011CaptureEnabledChanged(bool isEnabled);
+    void onDx9CaptureEnabledChanged(bool isEnabled);
 
     void openCurrentProfile();
 
@@ -194,7 +191,7 @@ private slots:
     void MoveUpPlugin();
     void MoveDownPlugin();
 
-	void onKeepLightsAfterLock_Toggled(bool isEnabled);
+    void onKeepLightsAfterLock_Toggled(bool isEnabled);
 
     void on_pbRunConfigurationWizard_clicked();
 
@@ -203,16 +200,17 @@ private:
     void updateDeviceTabWidgetsVisibility();
     void setDeviceTabWidgetsVisibility(DeviceTab::Options options);
     void syncLedDeviceWithSettingsWindow();
-    int getLigtpackFirmwareVersionMajor();
+    int getLightpackFirmwareVersionMajor();
 
     void updateStatusBar();
 
     void initLanguages();
+    void updateCaptureSourceTranslation();
     void initPixmapCache();
 
     void openFile(const QString &filePath);
 
-    void initGrabbersRadioButtonsVisibility();
+    void initAvailableGrabbers();
     void initVirtualLeds(int ledsCount);
 
     void adjustSizeAndMoveCenter();
@@ -241,6 +239,7 @@ private:
 
     SpeedTest *m_speedTest;
 
+    QList<Grab::GrabberType> m_availableGrabbers;
     Grab::GrabberType getSelectedGrabberType();
 
     bool isDx1011CaptureEnabled();
@@ -254,7 +253,7 @@ private:
     QLabel *m_labelStatusIcon;
     QLabel *labelProfile;
     QLabel *labelDevice;
-    QLabel *labelFPS;
+    QLabel *labelStatus;
 
     QCache<QString, QPixmap> m_pixmapCache;
 
@@ -271,6 +270,6 @@ private:
     QList<Plugin*> _plugins;
     static bool toPriority(Plugin* s1 , Plugin* s2 );
 
-	bool updatingFromSettings = false;
+    bool updatingFromSettings = false;
 };
 
